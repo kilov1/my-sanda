@@ -4,18 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MY SANDA</title>
-    <script>
-    (function(){
-        var p=location.pathname;
-        if(p&&p!=='/'&&p!=='/index.html'){
-            var parts=p.split('/').filter(Boolean);
-            var base=parts.length>0?'/'+parts[0]+'/':'/';
-            var b=document.createElement('base');
-            b.href=base;
-            document.head.insertBefore(b,document.head.firstChild);
-        }
-    })();
-    </script>
+    <!-- 无 base 标签，相对路径在 GitHub Pages 下正确解析为 /仓库名/css/... -->
+    <script>window.supabaseClient=null;</script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="./css/style.css">
 </head>
