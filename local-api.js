@@ -60,18 +60,12 @@
     ];
 
     function ensureSampleData() {
-        const life = load(STORAGE_KEYS.lifePosts, []);
-        const mat = load(STORAGE_KEYS.materials, []);
-        const lost = load(STORAGE_KEYS.lostFound, []);
-        const second = load(STORAGE_KEYS.secondhand, []);
-        const ask = load(STORAGE_KEYS.askHelp, []);
-        const fb = load(STORAGE_KEYS.feedback, []);
-        if (!life || life.length === 0) save(STORAGE_KEYS.lifePosts, SAMPLE_LIFE);
-        if (!mat || mat.length === 0) save(STORAGE_KEYS.materials, SAMPLE_MATERIALS);
-        if (!lost || lost.length === 0) save(STORAGE_KEYS.lostFound, SAMPLE_LOST);
-        if (!second || second.length === 0) save(STORAGE_KEYS.secondhand, SAMPLE_SECONDHAND);
-        if (!ask || ask.length === 0) save(STORAGE_KEYS.askHelp, SAMPLE_ASK);
-        if (!fb || fb.length === 0) save(STORAGE_KEYS.feedback, SAMPLE_FEEDBACK);
+        if (!load(STORAGE_KEYS.lifePosts)) save(STORAGE_KEYS.lifePosts, SAMPLE_LIFE);
+        if (!load(STORAGE_KEYS.materials)) save(STORAGE_KEYS.materials, SAMPLE_MATERIALS);
+        if (!load(STORAGE_KEYS.lostFound)) save(STORAGE_KEYS.lostFound, SAMPLE_LOST);
+        if (!load(STORAGE_KEYS.secondhand)) save(STORAGE_KEYS.secondhand, SAMPLE_SECONDHAND);
+        if (!load(STORAGE_KEYS.askHelp)) save(STORAGE_KEYS.askHelp, SAMPLE_ASK);
+        if (!load(STORAGE_KEYS.feedback)) save(STORAGE_KEYS.feedback, SAMPLE_FEEDBACK);
     }
     ensureSampleData();
 

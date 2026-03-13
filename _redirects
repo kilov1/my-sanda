@@ -1,2 +1,4 @@
-# SPA 支持：所有路径返回 index.html（Netlify 部署）
+# SPA 支持：所有路径返回 index.html，用于 Netlify 部署
+# 200 表示直接返回该文件内容，不重定向
+# 适用于单页应用和密码重置邮件链接跳转
 /*    /index.html   200

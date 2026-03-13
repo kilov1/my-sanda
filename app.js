@@ -1,4 +1,4 @@
-// 当前用户（Supabase Auth 或本地 localStorage 模式）
+// 当前用户（本地 localStorage 假邮箱模式）
 let currentUser = null;
 const USERS_KEY = 'mysanda_users';
 const SESSION_KEY = 'mysanda_session';
@@ -6,58 +6,21 @@ const SESSION_KEY = 'mysanda_session';
 // 页面历史栈（用于返回上一页）
 let pageHistory = [];
 
-// 是否使用 Supabase（有有效连接时）
-function useSupabase() {
-    return window.supabaseClient && typeof window.supabaseClient.auth !== 'undefined';
-}
-
-// 从 Supabase 加载当前用户（含 profile）
-async function loadCurrentUserFromSupabase() {
-    const sb = window.supabaseClient;
-    if (!sb) return null;
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session?.user) return null;
-    const u = session.user;
-    let nickname = u.email?.split('@')[0] || '用户';
-    let avatar = 5;
-    if (window.supabaseApi) {
-        const profile = await window.supabaseApi.getProfile(u.id);
-        if (profile) {
-            nickname = profile.nickname || nickname;
-            avatar = profile.avatar ?? 5;
-        }
-    }
-    return { id: u.id, email: u.email, nickname, avatar };
-}
-
-// 初始化（Supabase 或纯前端本地）
+// 初始化（纯前端本地）
 async function initLocal() {
-    if (useSupabase()) {
-        const sb = window.supabaseClient;
-        currentUser = await loadCurrentUserFromSupabase();
-        sb.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'PASSWORD_RECOVERY') {
-                showPage('resetPasswordPage');
-                return;
-            }
-            currentUser = session?.user ? await loadCurrentUserFromSupabase() : null;
-            await checkAuthStatus();
-        });
-    } else {
-        const session = localStorage.getItem(SESSION_KEY);
-        if (session) {
-            try {
-                const { email } = JSON.parse(session);
-                const users = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
-                const u = users[email];
-                if (u) {
-                    currentUser = { id: email, email, nickname: u.nickname || email.split('@')[0], avatar: 5 };
-                } else {
-                    localStorage.removeItem(SESSION_KEY);
-                }
-            } catch (e) {
+    const session = localStorage.getItem(SESSION_KEY);
+    if (session) {
+        try {
+            const { email } = JSON.parse(session);
+            const users = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
+            const u = users[email];
+            if (u) {
+                currentUser = { id: email, email, nickname: u.nickname || email.split('@')[0], avatar: 5 };
+            } else {
                 localStorage.removeItem(SESSION_KEY);
             }
+        } catch (e) {
+            localStorage.removeItem(SESSION_KEY);
         }
     }
     await checkAuthStatus();
@@ -168,8 +131,8 @@ function updatePasswordStrength(inputId, strengthId) {
 document.getElementById('registerForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const email = document.getElementById('registerEmail').value.trim();
-    const nickname = document.getElementById('registerNickname').value.trim();
+    const email = document.getElementById('registerEmail').value;
+    const nickname = document.getElementById('registerNickname').value;
     const password = document.getElementById('registerPassword').value;
     const confirmPassword = document.getElementById('registerConfirmPassword').value;
     
@@ -182,46 +145,22 @@ document.getElementById('registerForm')?.addEventListener('submit', async (e) =>
         return;
     }
 
+    // 必须勾选同意用户协议、免责声明、隐私政策
     const agreeTerms = document.getElementById('agreeTerms');
     if (!agreeTerms || !agreeTerms.checked) {
-        alert('请先阅读并勾选同意用户政策、免责声明、隐私政策');
+        alert('请先阅读并勾选同意用户协议、免责声明、隐私政策');
         return;
     }
 
+    // 昵称敏感词过滤
     const nicknameCheck = validateNickname(nickname);
     if (!nicknameCheck.valid) {
         alert(nicknameCheck.message);
         return;
     }
     
-    if (useSupabase()) {
-        if (!email || !email.includes('@')) {
-            alert('Supabase 模式需要填写真实邮箱格式');
-            return;
-        }
-        try {
-            const { data, error } = await window.supabaseClient.auth.signUp({
-                email,
-                password,
-                options: { data: { nickname } }
-            });
-            if (error) throw error;
-            if (data?.user?.identities?.length === 0) {
-                alert('该邮箱已注册，请直接登录');
-                return;
-            }
-            alert('注册成功！请查收邮箱验证链接，验证后可登录');
-            showPage('loginPage');
-            document.getElementById('registerForm').reset();
-        } catch (err) {
-            alert(err.message || '注册失败');
-        }
-        return;
-    }
-    
-    const emailLike = (v) => v && (v.includes('@') || v.trim().length >= 2);
-    if (!emailLike(email)) {
-        alert('请填写格式像邮箱的内容（如 xxx@xxx 或任意标识）');
+    if (!email || !email.includes('@')) {
+        alert('请填写格式正确的邮箱（如 xxx@xxx.com）');
         return;
     }
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
@@ -242,21 +181,8 @@ document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
     
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
-    if (!email || !password) {
-        alert('请填写账号和密码');
-        return;
-    }
-    if (useSupabase()) {
-        try {
-            const { error } = await window.supabaseClient.auth.signInWithPassword({ email, password });
-            if (error) throw error;
-            currentUser = await loadCurrentUserFromSupabase();
-            await checkAuthStatus();
-            showPage('homePage');
-            document.getElementById('loginForm').reset();
-        } catch (err) {
-            alert(err.message || '登录失败');
-        }
+    if (!email || !email.includes('@')) {
+        alert('请填写格式正确的邮箱');
         return;
     }
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
@@ -272,32 +198,20 @@ document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
     document.getElementById('loginForm').reset();
 });
 
-// 忘记密码
-document.getElementById('forgotPasswordForm')?.addEventListener('submit', async (e) => {
+// 忘记密码（本地：填邮箱跳转重置页）
+document.getElementById('forgotPasswordForm')?.addEventListener('submit', (e) => {
     e.preventDefault();
     const email = document.getElementById('forgotEmail').value.trim();
-    if (useSupabase()) {
-        if (!email || !email.includes('@')) {
-            alert('请输入注册时的邮箱');
-            return;
-        }
-        try {
-            const { error } = await window.supabaseClient.auth.resetPasswordForEmail(email, {
-                redirectTo: window.location.origin + window.location.pathname
-            });
-            if (error) throw error;
-            alert('重置链接已发送到您的邮箱，请查收');
-        } catch (err) {
-            alert(err.message || '发送失败');
-        }
+    if (!email || !email.includes('@')) {
+        alert('请填写格式正确的邮箱');
         return;
     }
-    sessionStorage.setItem('mysanda_reset_email', email || 'reset@local');
+    sessionStorage.setItem('mysanda_reset_email', email);
     showPage('resetPasswordPage');
 });
 
-// 重置密码
-document.getElementById('resetPasswordForm')?.addEventListener('submit', async (e) => {
+// 重置密码（本地：更新 localStorage）
+document.getElementById('resetPasswordForm')?.addEventListener('submit', (e) => {
     e.preventDefault();
     const newPassword = document.getElementById('resetPassword').value;
     const confirmPassword = document.getElementById('resetConfirmPassword').value;
@@ -309,30 +223,14 @@ document.getElementById('resetPasswordForm')?.addEventListener('submit', async (
         alert('密码强度过弱，请使用更复杂的密码');
         return;
     }
-    if (useSupabase()) {
-        try {
-            const { error } = await window.supabaseClient.auth.updateUser({ password: newPassword });
-            if (error) throw error;
-            alert('密码重置成功，请使用新密码登录');
-            currentUser = await loadCurrentUserFromSupabase();
-            await checkAuthStatus();
-            document.getElementById('resetPasswordForm').reset();
-            showPage('homePage');
-        } catch (err) {
-            alert(err.message || '重置失败');
-        }
-        return;
-    }
     const email = sessionStorage.getItem('mysanda_reset_email') || '';
     sessionStorage.removeItem('mysanda_reset_email');
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
     if (users[email]) {
         users[email].password = newPassword;
-    } else {
-        users[email] = { password: newPassword, nickname: (email.split('@')[0] || '用户') };
+        localStorage.setItem(USERS_KEY, JSON.stringify(users));
     }
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    alert('密码重置成功，请使用该账号登录');
+    alert('密码重置成功，请重新登录');
     currentUser = null;
     localStorage.removeItem(SESSION_KEY);
     checkAuthStatus();
@@ -341,13 +239,9 @@ document.getElementById('resetPasswordForm')?.addEventListener('submit', async (
 });
 
 // 退出登录
-document.getElementById('navLogoutBtn')?.addEventListener('click', async () => {
-    if (useSupabase()) {
-        await window.supabaseClient.auth.signOut();
-    } else {
-        localStorage.removeItem(SESSION_KEY);
-    }
+document.getElementById('navLogoutBtn')?.addEventListener('click', () => {
     currentUser = null;
+    localStorage.removeItem(SESSION_KEY);
     checkAuthStatus();
     showPage('homePage');
 });
