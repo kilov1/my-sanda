@@ -188,14 +188,8 @@ function deleteMaterial(materialId) {
     }
 }
 
-// 显示资料详情
+// 显示资料详情（无需登录可查看）
 function showMaterialDetail(materialId) {
-    if (!currentUser) {
-        alert('请先登录');
-        showPage('loginPage');
-        return;
-    }
-    
     const material = materialsData.find(m => m.id === materialId);
     if (!material) return;
     
@@ -310,21 +304,22 @@ function setupStudyMaterialsEvents() {
                 return;
             }
             
-            // 创建新资料对象
             const newMaterial = {
-                id: Math.max(...materialsData.map(m => m.id), 0) + 1,
                 title: fileName,
                 category: category,
                 uploader: currentUser.nickname || currentUser.email,
-                uploadTime: new Date().toISOString().split('T')[0],
                 description: fileDescription || '暂无介绍',
                 fileSize: (fileInput.files[0].size / 1024 / 1024).toFixed(2) + 'MB'
             };
             
-            materialsData.push(newMaterial);
-            localStorage.setItem('materials', JSON.stringify(materialsData));
-            
-            alert('上传成功！');
+            const api = window.supabaseApi;
+            const inserted = api ? await api.insertMaterial(newMaterial) : null;
+            if (inserted) {
+                await loadMaterialsData();
+                alert('上传成功！');
+            } else {
+                alert('上传失败，请重试');
+            }
             uploadModal.classList.add('hidden');
             uploadForm.reset();
             renderMaterialsList();

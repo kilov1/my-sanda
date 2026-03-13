@@ -69,8 +69,11 @@
         const el = document.getElementById('onlineCountDisplay');
         if (!el) return;
         const sb = typeof window !== 'undefined' && window.supabaseClient;
+        if (!sb) {
+            el.innerHTML = '当前网站在线人数：<span class="font-bold text-gray-800">1</span> 人';
+            return;
+        }
         el.innerHTML = '当前网站在线人数：<span class="font-bold text-gray-800">--</span> 人';
-        if (!sb) return;
         const channel = sb.channel('online-count');
         channel.on('presence', { event: 'sync' }, () => {
             const state = channel.presenceState();

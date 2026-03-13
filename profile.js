@@ -114,14 +114,34 @@ function setupProfileEvents() {
             currentUser.major = major;
             currentUser.bio = bio;
             
-            // 保存到 Supabase
-            const ok = window.supabaseApi && await window.supabaseApi.upsertProfile(currentUser.id, {
-                nickname, gender, birthday: birthday || null, school, college, major, bio,
-                avatar: currentUser.avatar
-            });
-            if (!ok && window.supabaseApi) {
-                alert('保存失败，请稍后重试');
-                return;
+            // 保存到 Supabase 或本地
+            const sb = window.supabaseClient;
+            if (sb && window.supabaseApi) {
+                const ok = await window.supabaseApi.upsertProfile(currentUser.id, {
+                    nickname, gender, birthday: birthday || null, school, college, major, bio,
+                    avatar: currentUser.avatar
+                });
+                if (!ok) {
+                    alert('保存失败，请稍后重试');
+                    return;
+                }
+            } else {
+                // 本地模式：保存到 localStorage users
+                const USERS_KEY = 'mysanda_users';
+                const users = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
+                const u = users[currentUser.email];
+                if (u) {
+                    u.nickname = nickname;
+                    users[currentUser.email] = u;
+                    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+                    currentUser.nickname = nickname;
+                    currentUser.gender = gender;
+                    currentUser.birthday = birthday;
+                    currentUser.school = school;
+                    currentUser.college = college;
+                    currentUser.major = major;
+                    currentUser.bio = bio;
+                }
             }
             
             // 更新导航栏显示
@@ -174,16 +194,12 @@ function updateNavBarUserInfo() {
     }
 }
 
-// 设置导航栏返回按钮
+// 设置导航栏返回按钮（返回上一页）
 function setupNavBackButton() {
     const navBackBtn = document.querySelector('.nav-back-btn');
-    
     if (navBackBtn) {
         navBackBtn.addEventListener('click', () => {
-            showPage('homePage');
-            navBackBtn.classList.add('hidden');
-            document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
-            document.querySelector('.category-btn[data-page="homePage"]').classList.add('active');
+            if (typeof goBack === 'function') goBack();
         });
     }
 }
@@ -230,16 +246,32 @@ function setupChangePasswordEvents() {
                 return;
             }
             
-            // 使用 Supabase 更新密码（需先验证旧密码通过 reauthenticate）
+            // 本地模式：无 Supabase 时用 localStorage 更新密码
             const supabase = window.supabaseClient;
-            if (!supabase) { alert('服务暂不可用'); return; }
-            const { error } = await supabase.auth.updateUser({ password: newPassword });
-            if (error) {
-                alert(error.message === 'New password should be different from the old password.' ? '新密码不能与旧密码相同' : (error.message || '密码更新失败'));
-                return;
+            if (!supabase) {
+                const USERS_KEY = 'mysanda_users';
+                const users = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
+                const u = users[currentUser.email];
+                if (!u || u.password !== oldPassword) {
+                    alert('旧密码错误');
+                    return;
+                }
+                if (newPassword === oldPassword) {
+                    alert('新密码不能与旧密码相同');
+                    return;
+                }
+                u.password = newPassword;
+                users[currentUser.email] = u;
+                localStorage.setItem(USERS_KEY, JSON.stringify(users));
+                alert('密码修改成功！');
+            } else {
+                const { error } = await supabase.auth.updateUser({ password: newPassword });
+                if (error) {
+                    alert(error.message === 'New password should be different from the old password.' ? '新密码不能与旧密码相同' : (error.message || '密码更新失败'));
+                    return;
+                }
+                alert('密码修改成功！');
             }
-            
-            alert('密码修改成功！');
             changePasswordForm.reset();
             showPage('profilePage');
         });
@@ -295,14 +327,24 @@ function setupResetPasswordFromProfileEvents() {
             }
             
             const supabase = window.supabaseClient;
-            if (!supabase) { alert('服务暂不可用'); return; }
-            const { error } = await supabase.auth.updateUser({ password: newPassword });
-            if (error) {
-                alert(error.message || '密码重置失败');
-                return;
+            if (!supabase) {
+                const USERS_KEY = 'mysanda_users';
+                const users = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
+                const u = users[currentUser.email];
+                if (u) {
+                    u.password = newPassword;
+                    users[currentUser.email] = u;
+                    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+                }
+                alert('密码重置成功！');
+            } else {
+                const { error } = await supabase.auth.updateUser({ password: newPassword });
+                if (error) {
+                    alert(error.message || '密码重置失败');
+                    return;
+                }
+                alert('密码重置成功！');
             }
-            
-            alert('密码重置成功！');
             resetPasswordFromProfileForm.reset();
             showPage('profilePage');
         });
